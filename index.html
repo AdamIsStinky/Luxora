@@ -147,13 +147,13 @@ window.onload = function() {
       },
       plugins: {
         legend: { display: false },
-        beforeDraw: chart => {
+        afterDraw: chart => {
           const ctx = chart.ctx;
           ctx.save();
-          ctx.fillStyle = 'rgba(200,200,200,0.6)';
-          ctx.font = '12px Arial';
+          ctx.fillStyle = 'rgba(200,200,200,0.6)'; // grey
+          ctx.font = '10px Arial'; // smaller font
           ctx.textAlign = 'right';
-          ctx.fillText('Graph resets every 20 minutes', chart.width - 10, chart.height - 10);
+          ctx.fillText('Graph resets every 20 minutes', chart.width - 10, 15); // top-right
           ctx.restore();
         }
       }
@@ -194,10 +194,7 @@ window.onload = function() {
     while (historyEl.children.length > 20) historyEl.removeChild(historyEl.lastChild);
   });
 
-  db.ref('price').transaction(currentPrice => {
-    if (currentPrice === null) return 100;
-    return currentPrice;
-  });
+  db.ref('price').transaction(currentPrice => currentPrice ?? 100);
 
   setInterval(() => {
     db.ref('price').transaction(currentPrice => {
@@ -245,7 +242,8 @@ window.onload = function() {
     shares -= amount;
     db.ref('users/' + userId).set({ cash, shares });
     db.ref('history').push(`${nickname} sold ${amount} shares at $${price.toFixed(2)}`);
-    db.ref('price').transaction(currentPrice => Math.max(1, currentPrice - Math.log10(amount + 1)));
+    db.ref('price').transaction
+        db.ref('price').transaction(currentPrice => Math.max(1, currentPrice - Math.log10(amount + 1)));
     updateUI();
   }
 }

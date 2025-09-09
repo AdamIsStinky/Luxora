@@ -120,12 +120,13 @@ window.onload = function() {
     historyEl.prepend(li);
   });
 
-  // Initialize price if missing
-  db.ref('price').once('value').then(snapshot => {
-    if (!snapshot.exists()) db.ref('price').set(100);
+  // Initialize price only if missing
+  db.ref('price').transaction(currentPrice => {
+    if (currentPrice === null) return 100;
+    return; // keep existing price
   });
 
-  // Price simulation with transaction()
+  // Price simulation using transaction()
   setInterval(() => {
     db.ref('price').transaction(currentPrice => {
       if (currentPrice === null) return 100;

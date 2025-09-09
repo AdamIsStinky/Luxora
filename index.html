@@ -162,6 +162,13 @@ window.onload = function() {
     } else {
       graphRef.set({ points:[], lastReset: now });
     }
+
+    // **Start graph from current Scaply price if empty**
+    if(priceData.length === 0){
+      priceData.push(price);
+      labels.push(new Date().toLocaleTimeString());
+      chart.update();
+    }
   });
 
   function updateChart(newPrice){

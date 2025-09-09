@@ -37,7 +37,7 @@ const firebaseConfig = {
   messagingSenderId: "505427041338",
   appId: "1:505427041338:web:a6c4e439c87ece9079a903",
   measurementId: "G-6FC2E11NN4",
-  databaseURL: "https://scaply-29f62-default-rtdb.firebaseio.com"
+  databaseURL: "https://scaply-29f62-default-rtdb.firebaseio.com/"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
@@ -118,17 +118,16 @@ window.onload = function() {
     const li = document.createElement("li");
     li.textContent = item;
     historyEl.prepend(li);
-    // Keep only last 20 entries
     while (historyEl.children.length > 20) historyEl.removeChild(historyEl.lastChild);
   });
 
-  // Initialize price only if missing
+  // Initialize price safely
   db.ref('price').transaction(currentPrice => {
     if (currentPrice === null) return 100;
     return currentPrice;
   });
 
-  // Price simulation using transaction()
+  // Random price changes every 5s
   setInterval(() => {
     db.ref('price').transaction(currentPrice => {
       if (currentPrice === null) return 100;
@@ -163,7 +162,7 @@ window.onload = function() {
     shares += amount;
     db.ref('users/' + userId).set({ cash, shares });
     db.ref('history').push(`${nickname} bought ${amount} shares at $${price.toFixed(2)}`);
-    // Market impact: increase price slightly
+    // Price impact: increase slightly
     db.ref('price').transaction(currentPrice => Math.max(1, currentPrice + amount * 0.1));
     updateUI();
   }
@@ -177,7 +176,7 @@ window.onload = function() {
     shares -= amount;
     db.ref('users/' + userId).set({ cash, shares });
     db.ref('history').push(`${nickname} sold ${amount} shares at $${price.toFixed(2)}`);
-    // Market impact: decrease price slightly
+    // Price impact: decrease slightly
     db.ref('price').transaction(currentPrice => Math.max(1, currentPrice - amount * 0.1));
     updateUI();
   }

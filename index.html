@@ -23,6 +23,8 @@
   .history h3 { margin-top:0; }
   .history ul { list-style:none; padding:0; margin:0; }
   .history li { padding:8px 0; border-bottom:1px solid #222; }
+  /* Mobile-friendly Start button */
+  #startBtn { margin-top:10px; padding:10px 15px; background:#0f0; color:#000; font-weight:bold; text-align:center; border-radius:6px; cursor:pointer; user-select:none; }
 </style>
 
 <!-- Firebase -->
@@ -50,7 +52,7 @@ const db = firebase.database();
   <div id="nicknameScreen">
     <header><h1>Enter Your Nickname</h1></header>
     <input type="text" id="nickname" placeholder="Nickname">
-    <button type="button" onclick="startGame()">Start</button>
+    <div id="startBtn">Start</div>
   </div>
 
   <!-- Main game screen -->
@@ -88,6 +90,9 @@ const sharesEl = document.getElementById("shares");
 const priceEl = document.getElementById("price");
 const totalEl = document.getElementById("totalValue");
 const historyEl = document.getElementById("history");
+
+// Mobile-friendly Start button
+document.getElementById('startBtn').addEventListener('click', startGame);
 
 function startGame() {
   nickname = document.getElementById("nickname").value.trim();

@@ -20,6 +20,7 @@
   .buy { background:#0f0; color:#000; }
   .sell { background:#f00; color:#fff; }
   #changeNickname { background:#00f; color:#fff; margin-bottom:10px; }
+  .chart-container { background:#111; padding:15px; border-radius:8px; margin-bottom:20px; }
   .history { background:#111; padding:15px; border-radius:8px; max-height:300px; overflow-y:auto; }
   .history h3 { margin-top:0; }
   .history ul { list-style:none; padding:0; margin:0; }
@@ -29,6 +30,9 @@
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyAtbXqId49sEwkj6zIvUzQUkfWLaZUm2EE",
@@ -66,6 +70,12 @@ const db = firebase.database();
     <button class="sell" onclick="sell()">Sell</button>
   </div>
 
+  <!-- Graph -->
+  <div class="chart-container">
+    <canvas id="priceChart" height="200"></canvas>
+  </div>
+
+  <!-- Transaction history -->
   <div class="history">
     <h3>Transaction History</h3>
     <ul id="history"></ul>
@@ -116,10 +126,49 @@ window.onload = function() {
     updateUI();
   });
 
+  // Chart setup
+  const ctx = document.getElementById('priceChart').getContext('2d');
+  const priceData = [];
+  const labels = [];
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Scaply Price',
+        data: priceData,
+        borderColor: '#0ff',
+        backgroundColor: 'rgba(0,255,255,0.2)',
+        tension: 0.3,
+        fill: true
+      }]
+    },
+    options: {
+      scales: {
+        x: { ticks: { color:'#fff' } },
+        y: { ticks: { color:'#fff' } }
+      },
+      plugins: {
+        legend: { labels: { color:'#fff' } }
+      }
+    }
+  });
+
+  function updateChart(newPrice) {
+    priceData.push(newPrice);
+    labels.push(new Date().toLocaleTimeString());
+    if (priceData.length > 20) {
+      priceData.shift();
+      labels.shift();
+    }
+    chart.update();
+  }
+
   // Listen to shared price
   db.ref('price').on('value', snapshot => {
     price = snapshot.val() || 100;
     updateUI();
+    updateChart(price);
   });
 
   // Listen to shared history
@@ -137,16 +186,16 @@ window.onload = function() {
     return currentPrice;
   });
 
-  // Random price changes every 5s
+  // Smooth random price changes every 3s
   setInterval(() => {
     db.ref('price').transaction(currentPrice => {
       if (currentPrice === null) return 100;
-      let change = (Math.random() - 0.5) * 10;
+      let change = (Math.random() - 0.5) * 2; // ±$1
       let newPrice = Math.max(1, currentPrice + change);
       db.ref('history').push(`Price changed to $${newPrice.toFixed(2)}`);
       return newPrice;
     });
-  }, 5000);
+  }, 3000);
 
   // Change nickname button
   document.getElementById("changeNickname").addEventListener("click", () => {
@@ -173,7 +222,6 @@ window.onload = function() {
     shares += amount;
     db.ref('users/' + userId).set({ cash, shares });
     db.ref('history').push(`${nickname} bought ${amount} shares at $${price.toFixed(2)}`);
-    // Logarithmic price impact
     db.ref('price').transaction(currentPrice => {
       let impact = Math.log10(amount + 1);
       return Math.max(1, currentPrice + impact);
@@ -190,7 +238,6 @@ window.onload = function() {
     shares -= amount;
     db.ref('users/' + userId).set({ cash, shares });
     db.ref('history').push(`${nickname} sold ${amount} shares at $${price.toFixed(2)}`);
-    // Logarithmic price impact
     db.ref('price').transaction(currentPrice => {
       let impact = Math.log10(amount + 1);
       return Math.max(1, currentPrice - impact);

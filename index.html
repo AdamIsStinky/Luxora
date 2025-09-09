@@ -124,14 +124,15 @@ window.onload = function() {
     if (!snapshot.exists()) db.ref('price').set(100);
   });
 
-  // Price simulation
+  // Price simulation with transaction() to prevent conflicts
   setInterval(() => {
-    db.ref('price').once('value').then(snap => {
-      let p = snap.val() || 100;
-      const change = (Math.random() - 0.5) * 10;
-      p = Math.max(1, p + change);
-      db.ref('price').set(p);
-      db.ref('history').push(`Price changed to $${p.toFixed(2)}`);
+    db.ref('price').transaction(currentPrice => {
+      if (currentPrice === null) return 100;
+      let change = (Math.random() - 0.5) * 10;
+      let newPrice = Math.max(1, currentPrice + change);
+      // push transaction history
+      db.ref('history').push(`Price changed to $${newPrice.toFixed(2)}`);
+      return newPrice;
     });
   }, 5000);
 

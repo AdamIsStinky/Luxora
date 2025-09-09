@@ -147,28 +147,29 @@ window.onload = function() {
 
   const graphRef = db.ref('graph');
 
-  // Load graph from Firebase and respect 20-min reset
-  graphRef.get().then(snapshot=>{
-    const data = snapshot.val();
-    const now = Date.now();
-    if(data && data.points && data.lastReset){
-      if(now - data.lastReset < 20*60*1000){
+  // **Wait for the first price from Firebase before initializing graph**
+  db.ref('price').once('value').then(snap => {
+    price = snap.val() || 100;
+    updateUI();
+
+    // Load graph and respect 20-min reset
+    graphRef.get().then(snapshot => {
+      const data = snapshot.val();
+      const now = Date.now();
+
+      if (data && data.points && data.lastReset && (now - data.lastReset < 20*60*1000)) {
         priceData.push(...data.points.map(p=>p.price));
         labels.push(...data.points.map(p=>p.time));
-        chart.update();
-      } else {
-        graphRef.set({ points:[], lastReset: now });
       }
-    } else {
-      graphRef.set({ points:[], lastReset: now });
-    }
 
-    // **Start graph from current Scaply price if empty**
-    if(priceData.length === 0){
-      priceData.push(price);
-      labels.push(new Date().toLocaleTimeString());
+      // If still empty, start with current Scaply price
+      if (priceData.length === 0) {
+        priceData.push(price);
+        labels.push(new Date().toLocaleTimeString());
+      }
+
       chart.update();
-    }
+    });
   });
 
   function updateChart(newPrice){

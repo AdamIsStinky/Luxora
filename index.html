@@ -20,7 +20,7 @@
   .buy { background:#0f0; color:#000; }
   .sell { background:#f00; color:#fff; }
   #changeNickname { background:#00f; color:#fff; margin-bottom:10px; }
-  .chart-container { background:#111; padding:15px; border-radius:8px; margin-bottom:20px; }
+  .chart-container { background:#111; padding:15px; border-radius:8px; margin-bottom:20px; position:relative; }
   .history { background:#111; padding:15px; border-radius:8px; max-height:300px; overflow-y:auto; }
   .history h3 { margin-top:0; }
   .history ul { list-style:none; padding:0; margin:0; }
@@ -70,12 +70,10 @@ const db = firebase.database();
     <button class="sell" onclick="sell()">Sell</button>
   </div>
 
-  <!-- Graph -->
   <div class="chart-container">
     <canvas id="priceChart" height="200"></canvas>
   </div>
 
-  <!-- Transaction history -->
   <div class="history">
     <h3>Transaction History</h3>
     <ul id="history"></ul>
@@ -150,100 +148,101 @@ window.onload = function() {
         afterDraw: chart => {
           const ctx = chart.ctx;
           ctx.save();
-          ctx.fillStyle = 'rgba(200,200,200,0.6)'; // grey
-          ctx.font = '10px Arial'; // smaller font
+          ctx.fillStyle = 'rgba(200,200,200,0.6)';
+          ctx.font = '10px Arial';
           ctx.textAlign = 'right';
-          ctx.fillText('Graph resets every 20 minutes', chart.width - 10, 15); // top-right
+          ctx.fillText('Graph resets every 20 minutes', chart.width - 10, 15);
           ctx.restore();
         }
       }
     }
   });
 
-  function updateChart(newPrice) {
-    priceData.push(newPrice);
-    labels.push(new Date().toLocaleTimeString());
+  const graphRef = db.ref('graph');
 
-    // Keep only the last 10 points
-    if (priceData.length > 10) {
-      priceData.shift();
-      labels.shift();
+  // Load graph from Firebase and respect 20-min reset
+  graphRef.get().then(snapshot => {
+    const data = snapshot.val();
+    const now = Date.now();
+    if (data && data.points && data.lastReset) {
+      if (now - data.lastReset < 20*60*1000) {
+        priceData.push(...data.points.map(p=>p.price));
+        labels.push(...data.points.map(p=>p.time));
+        chart.update();
+      } else {
+        graphRef.set({ points: [], lastReset: now });
+      }
+    } else {
+      graphRef.set({ points: [], lastReset: now });
     }
+  });
 
+  function updateChart(newPrice) {
+    const time = new Date().toLocaleTimeString();
+    priceData.push(newPrice);
+    labels.push(time);
+    if (priceData.length > 10) { priceData.shift(); labels.shift(); }
     chart.update();
+    const points = labels.map((t,i)=>({ time:t, price:priceData[i] }));
+    graphRef.get().then(snap => {
+      let lastReset = snap.val()?.lastReset || Date.now();
+      graphRef.set({ points, lastReset });
+    });
   }
 
-  // Reset only the graph every 20 minutes
-  setInterval(() => {
-    priceData.length = 0;
-    labels.length = 0;
-    chart.update();
-  }, 20 * 60 * 1000);
+  setInterval(()=>{
+    priceData.length=0; labels.length=0; chart.update();
+    graphRef.get().then(()=>graphRef.set({ points:[], lastReset:Date.now() }));
+  }, 20*60*1000);
 
-  db.ref('price').on('value', snapshot => {
-    price = snapshot.val() || 100;
+  db.ref('price').on('value', snap=>{
+    price = snap.val() || 100;
     updateUI();
     updateChart(price);
   });
 
-  db.ref('history').on('child_added', snapshot => {
-    const item = snapshot.val();
-    const li = document.createElement("li");
-    li.textContent = item;
+  db.ref('history').on('child_added', snap=>{
+    const li=document.createElement("li"); li.textContent=snap.val();
     historyEl.prepend(li);
-    while (historyEl.children.length > 20) historyEl.removeChild(historyEl.lastChild);
+    while(historyEl.children.length>20) historyEl.removeChild(historyEl.lastChild);
   });
 
-  db.ref('price').transaction(currentPrice => currentPrice ?? 100);
+  db.ref('price').transaction(cp=>cp??100);
 
-  setInterval(() => {
-    db.ref('price').transaction(currentPrice => {
-      if (currentPrice === null) return 100;
-      let change = (Math.random() - 0.5) * 2;
-      let newPrice = Math.max(1, currentPrice + change);
+  setInterval(()=>{
+    db.ref('price').transaction(cp=>{
+      if(cp===null) return 100;
+      let newPrice=Math.max(1, cp+(Math.random()-0.5)*2);
       db.ref('history').push(`Price changed to $${newPrice.toFixed(2)}`);
       return newPrice;
     });
-  }, 3000);
+  },3000);
 
-  document.getElementById("changeNickname").addEventListener("click", () => {
-    let newNickname = prompt("Enter your new nickname")?.trim();
-    if (!newNickname) return;
-    nickname = newNickname;
-    localStorage.setItem("scaplyNickname", nickname);
-    updateNicknameDisplay();
+  document.getElementById("changeNickname").addEventListener("click", ()=>{
+    let newNick=prompt("Enter your new nickname")?.trim(); if(!newNick) return;
+    nickname=newNick; localStorage.setItem("scaplyNickname", nickname); updateNicknameDisplay();
     alert(`Nickname changed to ${nickname}`);
   });
 
-  function updateUI() {
-    cashEl.textContent = "$" + cash.toLocaleString();
-    sharesEl.textContent = shares;
-    priceEl.textContent = "$" + price.toFixed(2);
-  }
+  function updateUI() { cashEl.textContent="$"+cash.toLocaleString(); sharesEl.textContent=shares; priceEl.textContent="$"+price.toFixed(2); }
 
-  window.buy = function() {
-    const amount = parseInt(document.getElementById("amount").value);
-    if (!amount || amount <= 0) return;
-    const cost = amount * price;
-    if (cost > cash) { alert("Not enough cash!"); return; }
-    cash -= cost;
-    shares += amount;
-    db.ref('users/' + userId).set({ cash, shares });
+  window.buy=function(){
+    const amount=parseInt(document.getElementById("amount").value); if(!amount||amount<=0) return;
+    const cost=amount*price; if(cost>cash){alert("Not enough cash!"); return;}
+    cash-=cost; shares+=amount;
+    db.ref('users/'+userId).set({ cash, shares });
     db.ref('history').push(`${nickname} bought ${amount} shares at $${price.toFixed(2)}`);
-    db.ref('price').transaction(currentPrice => Math.max(1, currentPrice + Math.log10(amount + 1)));
+    db.ref('price').transaction(cp=>Math.max(1, cp+Math.log10(amount+1)));
     updateUI();
   }
 
-  window.sell = function() {
-    const amount = parseInt(document.getElementById("amount").value);
-    if (!amount || amount <= 0) return;
-    if (amount > shares) { alert("Not enough shares!"); return; }
-    cash += amount * price;
-    shares -= amount;
-    db.ref('users/' + userId).set({ cash, shares });
+  window.sell=function(){
+    const amount=parseInt(document.getElementById("amount").value); if(!amount||amount<=0) return;
+    if(amount>shares){alert("Not enough shares!"); return;}
+    cash+=amount*price; shares-=amount;
+    db.ref('users/'+userId).set({ cash, shares });
     db.ref('history').push(`${nickname} sold ${amount} shares at $${price.toFixed(2)}`);
-    db.ref('price').transaction
-        db.ref('price').transaction(currentPrice => Math.max(1, currentPrice - Math.log10(amount + 1)));
+    db.ref('price').transaction(cp=>Math.max(1, cp-Math.log10(amount+1)));
     updateUI();
   }
 }

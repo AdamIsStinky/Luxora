@@ -146,30 +146,37 @@ window.onload = function() {
   });
 
   const graphRef = db.ref('graph');
+  let firstPriceLoaded = false;
 
-  // **Wait for the first price from Firebase before initializing graph**
-  db.ref('price').once('value').then(snap => {
+  // Listen to price changes
+  db.ref('price').on('value', snap=>{
     price = snap.val() || 100;
     updateUI();
 
-    // Load graph and respect 20-min reset
-    graphRef.get().then(snapshot => {
-      const data = snapshot.val();
-      const now = Date.now();
+    // First time: initialize graph with current price
+    if(!firstPriceLoaded){
+      // Load graph from Firebase
+      graphRef.get().then(snapshot=>{
+        const data = snapshot.val();
+        const now = Date.now();
+        if(data && data.points && data.lastReset && (now - data.lastReset < 20*60*1000)){
+          priceData.push(...data.points.map(p=>p.price));
+          labels.push(...data.points.map(p=>p.time));
+        }
 
-      if (data && data.points && data.lastReset && (now - data.lastReset < 20*60*1000)) {
-        priceData.push(...data.points.map(p=>p.price));
-        labels.push(...data.points.map(p=>p.time));
-      }
+        if(priceData.length===0){
+          // Start from current price
+          priceData.push(price);
+          labels.push(new Date().toLocaleTimeString());
+        }
+        chart.update();
+      });
+      firstPriceLoaded = true;
+      return; // Skip regular chart update for first load
+    }
 
-      // If still empty, start with current Scaply price
-      if (priceData.length === 0) {
-        priceData.push(price);
-        labels.push(new Date().toLocaleTimeString());
-      }
-
-      chart.update();
-    });
+    // Update chart for subsequent price changes
+    updateChart(price);
   });
 
   function updateChart(newPrice){
@@ -192,13 +199,6 @@ window.onload = function() {
       priceData.length=0; labels.length=0; chart.update();
     });
   }, 20*60*1000);
-
-  // Real-time price
-  db.ref('price').on('value', snap=>{
-    price = snap.val() || 100;
-    updateUI();
-    updateChart(price);
-  });
 
   // Transaction history
   db.ref('history').on('child_added', snap=>{

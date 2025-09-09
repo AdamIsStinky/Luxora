@@ -23,7 +23,6 @@
   .history h3 { margin-top:0; }
   .history ul { list-style:none; padding:0; margin:0; }
   .history li { padding:8px 0; border-bottom:1px solid #222; }
-  /* Mobile-friendly Start button */
   #startBtn { margin-top:10px; padding:10px 15px; background:#0f0; color:#000; font-weight:bold; text-align:center; border-radius:6px; cursor:pointer; user-select:none; }
 </style>
 
@@ -81,98 +80,100 @@ const db = firebase.database();
 </div>
 
 <script>
-let nickname;
-let cash = 100000;
-let shares = 0;
+window.onload = function() {
+  let nickname;
+  let cash = 100000;
+  let shares = 0;
+  let price = 100;
 
-const cashEl = document.getElementById("cash");
-const sharesEl = document.getElementById("shares");
-const priceEl = document.getElementById("price");
-const totalEl = document.getElementById("totalValue");
-const historyEl = document.getElementById("history");
+  const cashEl = document.getElementById("cash");
+  const sharesEl = document.getElementById("shares");
+  const priceEl = document.getElementById("price");
+  const totalEl = document.getElementById("totalValue");
+  const historyEl = document.getElementById("history");
 
-// Mobile-friendly Start button
-document.getElementById('startBtn').addEventListener('click', startGame);
+  // Mobile-friendly Start button
+  document.getElementById('startBtn').addEventListener('click', startGame);
 
-function startGame() {
-  nickname = document.getElementById("nickname").value.trim();
-  if (!nickname) { alert("Enter a nickname!"); return; }
+  function startGame() {
+    nickname = document.getElementById("nickname").value.trim();
+    if (!nickname) { alert("Enter a nickname!"); return; }
 
-  // Load user data from Firebase
-  db.ref('users/' + nickname).get().then(snapshot => {
-    if (snapshot.exists()) {
-      const data = snapshot.val();
-      cash = data.cash;
-      shares = data.shares;
-    } else {
-      db.ref('users/' + nickname).set({ cash, shares });
-    }
+    db.ref('users/' + nickname).get().then(snapshot => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        cash = data.cash;
+        shares = data.shares;
+      } else {
+        db.ref('users/' + nickname).set({ cash, shares });
+      }
 
-    document.getElementById("nicknameScreen").classList.add("hidden");
-    document.getElementById("gameScreen").classList.remove("hidden");
-    updateUI();
-  });
-
-  // Listen to shared price
-  db.ref('price').on('value', snapshot => {
-    price = snapshot.val() || 100;
-    updateUI();
-  });
-
-  // Listen to shared history
-  db.ref('history').on('child_added', snapshot => {
-    const item = snapshot.val();
-    const li = document.createElement("li");
-    li.textContent = item;
-    historyEl.prepend(li);
-  });
-
-  // Initialize price if it doesn't exist
-  db.ref('price').once('value').then(snapshot => {
-    if (!snapshot.exists()) db.ref('price').set(100);
-  });
-
-  // Start price simulation
-  setInterval(() => {
-    db.ref('price').once('value').then(snap => {
-      let p = snap.val() || 100;
-      const change = (Math.random() - 0.5) * 10;
-      p = Math.max(1, p + change);
-      db.ref('price').set(p);
-      db.ref('history').push(`Price changed to $${p.toFixed(2)}`);
+      document.getElementById("nicknameScreen").classList.add("hidden");
+      document.getElementById("gameScreen").classList.remove("hidden");
+      updateUI();
     });
-  }, 5000);
-}
 
-function updateUI() {
-  cashEl.textContent = "$" + cash.toLocaleString();
-  sharesEl.textContent = shares;
-  priceEl.textContent = "$" + price.toFixed(2);
-  totalEl.textContent = "$" + (cash + shares * price).toLocaleString();
-}
+    // Listen to shared price
+    db.ref('price').on('value', snapshot => {
+      price = snapshot.val() || 100;
+      updateUI();
+    });
 
-function buy() {
-  const amount = parseInt(document.getElementById("amount").value);
-  if (!amount || amount <= 0) return;
-  const cost = amount * price;
-  if (cost > cash) { alert("Not enough cash!"); return; }
-  cash -= cost;
-  shares += amount;
-  db.ref('users/' + nickname).set({ cash, shares });
-  db.ref('history').push(`${nickname} bought ${amount} shares at $${price.toFixed(2)}`);
-  updateUI();
-}
+    // Listen to shared history
+    db.ref('history').on('child_added', snapshot => {
+      const item = snapshot.val();
+      const li = document.createElement("li");
+      li.textContent = item;
+      historyEl.prepend(li);
+    });
 
-function sell() {
-  const amount = parseInt(document.getElementById("amount").value);
-  if (!amount || amount <= 0) return;
-  if (amount > shares) { alert("Not enough shares!"); return; }
-  const revenue = amount * price;
-  cash += revenue;
-  shares -= amount;
-  db.ref('users/' + nickname).set({ cash, shares });
-  db.ref('history').push(`${nickname} sold ${amount} shares at $${price.toFixed(2)}`);
-  updateUI();
+    // Initialize price if it doesn't exist
+    db.ref('price').once('value').then(snapshot => {
+      if (!snapshot.exists()) db.ref('price').set(100);
+    });
+
+    // Start price simulation
+    setInterval(() => {
+      db.ref('price').once('value').then(snap => {
+        let p = snap.val() || 100;
+        const change = (Math.random() - 0.5) * 10;
+        p = Math.max(1, p + change);
+        db.ref('price').set(p);
+        db.ref('history').push(`Price changed to $${p.toFixed(2)}`);
+      });
+    }, 5000);
+  }
+
+  function updateUI() {
+    cashEl.textContent = "$" + cash.toLocaleString();
+    sharesEl.textContent = shares;
+    priceEl.textContent = "$" + price.toFixed(2);
+    totalEl.textContent = "$" + (cash + shares * price).toLocaleString();
+  }
+
+  window.buy = function() {
+    const amount = parseInt(document.getElementById("amount").value);
+    if (!amount || amount <= 0) return;
+    const cost = amount * price;
+    if (cost > cash) { alert("Not enough cash!"); return; }
+    cash -= cost;
+    shares += amount;
+    db.ref('users/' + nickname).set({ cash, shares });
+    db.ref('history').push(`${nickname} bought ${amount} shares at $${price.toFixed(2)}`);
+    updateUI();
+  }
+
+  window.sell = function() {
+    const amount = parseInt(document.getElementById("amount").value);
+    if (!amount || amount <= 0) return;
+    if (amount > shares) { alert("Not enough shares!"); return; }
+    const revenue = amount * price;
+    cash += revenue;
+    shares -= amount;
+    db.ref('users/' + nickname).set({ cash, shares });
+    db.ref('history').push(`${nickname} sold ${amount} shares at $${price.toFixed(2)}`);
+    updateUI();
+  }
 }
 </script>
 </body>

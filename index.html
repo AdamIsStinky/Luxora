@@ -95,9 +95,7 @@ window.onload = function() {
   const historyEl = document.getElementById("history");
   const nicknameEl = document.getElementById("nicknameDisplay");
 
-  function updateNicknameDisplay() {
-    nicknameEl.textContent = "Nickname: " + nickname;
-  }
+  function updateNicknameDisplay() { nicknameEl.textContent = "Nickname: " + nickname; }
 
   if (!nickname) {
     nickname = prompt("Enter your nickname") || "Player";
@@ -153,29 +151,30 @@ window.onload = function() {
     price = snap.val() || 100;
     updateUI();
 
-    // First time: initialize graph with current price
     if(!firstPriceLoaded){
-      // Load graph from Firebase
       graphRef.get().then(snapshot=>{
         const data = snapshot.val();
         const now = Date.now();
+        priceData.length = 0;
+        labels.length = 0;
+
         if(data && data.points && data.lastReset && (now - data.lastReset < 20*60*1000)){
-          priceData.push(...data.points.map(p=>p.price));
-          labels.push(...data.points.map(p=>p.time));
+          const recentPoints = data.points.slice(-10);
+          recentPoints.forEach(p => { priceData.push(p.price); labels.push(p.time); });
         }
 
-        if(priceData.length===0){
-          // Start from current price
+        // First point is current price
+        if(priceData.length === 0){
           priceData.push(price);
           labels.push(new Date().toLocaleTimeString());
         }
+
         chart.update();
       });
       firstPriceLoaded = true;
-      return; // Skip regular chart update for first load
+      return;
     }
 
-    // Update chart for subsequent price changes
     updateChart(price);
   });
 
@@ -183,8 +182,12 @@ window.onload = function() {
     const time = new Date().toLocaleTimeString();
     priceData.push(newPrice);
     labels.push(time);
-    if(priceData.length>10){ priceData.shift(); labels.shift(); }
+
+    // Keep max 10 points
+    while(priceData.length > 10){ priceData.shift(); labels.shift(); }
+
     chart.update();
+
     graphRef.get().then(snap=>{
       const lastReset = snap.val()?.lastReset || Date.now();
       const points = labels.map((t,i)=>({ time:t, price:priceData[i] }));
@@ -194,10 +197,8 @@ window.onload = function() {
 
   // Reset graph every 20 minutes
   setInterval(()=>{
-    graphRef.get().then(()=>{ 
-      graphRef.set({ points:[], lastReset:Date.now() }); 
-      priceData.length=0; labels.length=0; chart.update();
-    });
+    graphRef.set({ points:[], lastReset:Date.now() });
+    priceData.length=0; labels.length=0; chart.update();
   }, 20*60*1000);
 
   // Transaction history
@@ -226,7 +227,11 @@ window.onload = function() {
     alert(`Nickname changed to ${nickname}`);
   });
 
-  function updateUI(){ cashEl.textContent="$"+cash.toLocaleString(); sharesEl.textContent=shares; priceEl.textContent="$"+price.toFixed(2); }
+  function updateUI(){ 
+    cashEl.textContent="$"+cash.toLocaleString(); 
+    sharesEl.textContent=shares; 
+    priceEl.textContent="$"+price.toFixed(2); 
+  }
 
   // Buy/Sell
   window.buy=function(){

@@ -1,0 +1,195 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scaply Stock Simulator</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #000;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      width: 100%;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 2rem;
+      letter-spacing: 1px;
+    }
+    .stats {
+      display: flex;
+      justify-content: space-between;
+      background: #111;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .stat {
+      text-align: center;
+    }
+    .stat h2 {
+      margin: 0;
+      font-size: 1.2rem;
+    }
+    .stat p {
+      margin: 5px 0 0;
+      color: #bbb;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    input {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #444;
+      border-radius: 6px;
+      background: #111;
+      color: #fff;
+    }
+    button {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .buy {
+      background: #0f0;
+      color: #000;
+    }
+    .sell {
+      background: #f00;
+      color: #fff;
+    }
+    .history {
+      background: #111;
+      padding: 15px;
+      border-radius: 8px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .history h3 {
+      margin-top: 0;
+    }
+    .history ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .history li {
+      padding: 8px 0;
+      border-bottom: 1px solid #222;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Scaply Stock Simulator</h1>
+      <p>Start with $100,000 virtual money</p>
+    </header>
+
+    <div class="stats">
+      <div class="stat">
+        <h2 id="cash">$100,000</h2>
+        <p>Cash</p>
+      </div>
+      <div class="stat">
+        <h2 id="shares">0</h2>
+        <p>Shares Owned</p>
+      </div>
+      <div class="stat">
+        <h2 id="price">$100</h2>
+        <p>Scaply Price</p>
+      </div>
+    </div>
+
+    <div class="controls">
+      <input type="number" id="amount" placeholder="Enter shares..." min="1">
+      <button class="buy" onclick="buy()">Buy</button>
+      <button class="sell" onclick="sell()">Sell</button>
+    </div>
+
+    <div class="history">
+      <h3>Transaction History</h3>
+      <ul id="history"></ul>
+    </div>
+  </div>
+
+  <script>
+    let cash = localStorage.getItem("cash") ? parseFloat(localStorage.getItem("cash")) : 100000;
+    let shares = localStorage.getItem("shares") ? parseInt(localStorage.getItem("shares")) : 0;
+    let price = localStorage.getItem("price") ? parseFloat(localStorage.getItem("price")) : 100;
+    let history = JSON.parse(localStorage.getItem("history")) || [];
+
+    function updateUI() {
+      document.getElementById("cash").textContent = "$" + cash.toLocaleString();
+      document.getElementById("shares").textContent = shares;
+      document.getElementById("price").textContent = "$" + price.toFixed(2);
+
+      let historyList = document.getElementById("history");
+      historyList.innerHTML = "";
+      history.slice().reverse().forEach(item => {
+        let li = document.createElement("li");
+        li.textContent = item;
+        historyList.appendChild(li);
+      });
+
+      localStorage.setItem("cash", cash);
+      localStorage.setItem("shares", shares);
+      localStorage.setItem("price", price);
+      localStorage.setItem("history", JSON.stringify(history));
+    }
+
+    function buy() {
+      let amount = parseInt(document.getElementById("amount").value);
+      if (!amount || amount <= 0) return;
+      let cost = amount * price;
+      if (cost > cash) {
+        alert("Not enough cash!");
+        return;
+      }
+      cash -= cost;
+      shares += amount;
+      history.push(`Bought ${amount} shares at $${price.toFixed(2)} each`);
+      updateUI();
+    }
+
+    function sell() {
+      let amount = parseInt(document.getElementById("amount").value);
+      if (!amount || amount <= 0) return;
+      if (amount > shares) {
+        alert("Not enough shares!");
+        return;
+      }
+      let revenue = amount * price;
+      cash += revenue;
+      shares -= amount;
+      history.push(`Sold ${amount} shares at $${price.toFixed(2)} each`);
+      updateUI();
+    }
+
+    setInterval(() => {
+      let change = (Math.random() - 0.5) * 10;
+      price = Math.max(1, price + change);
+      updateUI();
+    }, 5000);
+
+    updateUI();
+  </script>
+</body>
+</html>

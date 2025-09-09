@@ -1,1 +1,1 @@
-# Luxora
+# Scaply

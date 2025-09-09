@@ -127,31 +127,18 @@ window.onload = function() {
   const labels = [];
   const chart = new Chart(ctx, {
     type: 'line',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'Scaply Price',
-        data: priceData,
-        borderColor: '#0ff',
-        backgroundColor: 'rgba(0,255,255,0.2)',
-        tension: 0.3,
-        fill: true
-      }]
-    },
+    data: { labels: labels, datasets: [{ label:'Scaply Price', data:priceData, borderColor:'#0ff', backgroundColor:'rgba(0,255,255,0.2)', tension:0.3, fill:true }] },
     options: {
-      scales: {
-        x: { ticks: { color:'#fff' }, grid: { color: '#222' } },
-        y: { ticks: { color:'#fff' }, grid: { color: '#222' } }
-      },
+      scales: { x:{ ticks:{color:'#fff'}, grid:{color:'#222'} }, y:{ ticks:{color:'#fff'}, grid:{color:'#222'} } },
       plugins: {
         legend: { display: false },
-        afterDraw: chart => {
+        afterDraw: chart=>{
           const ctx = chart.ctx;
           ctx.save();
-          ctx.fillStyle = 'rgba(200,200,200,0.6)';
-          ctx.font = '10px Arial';
-          ctx.textAlign = 'right';
-          ctx.fillText('Graph resets every 20 minutes', chart.width - 10, 15);
+          ctx.fillStyle='rgba(200,200,200,0.6)';
+          ctx.font='10px Arial';
+          ctx.textAlign='right';
+          ctx.fillText('Graph resets every 20 minutes', chart.width-10,15);
           ctx.restore();
         }
       }
@@ -161,46 +148,51 @@ window.onload = function() {
   const graphRef = db.ref('graph');
 
   // Load graph from Firebase and respect 20-min reset
-  graphRef.get().then(snapshot => {
+  graphRef.get().then(snapshot=>{
     const data = snapshot.val();
     const now = Date.now();
-    if (data && data.points && data.lastReset) {
-      if (now - data.lastReset < 20*60*1000) {
+    if(data && data.points && data.lastReset){
+      if(now - data.lastReset < 20*60*1000){
         priceData.push(...data.points.map(p=>p.price));
         labels.push(...data.points.map(p=>p.time));
         chart.update();
       } else {
-        graphRef.set({ points: [], lastReset: now });
+        graphRef.set({ points:[], lastReset: now });
       }
     } else {
-      graphRef.set({ points: [], lastReset: now });
+      graphRef.set({ points:[], lastReset: now });
     }
   });
 
-  function updateChart(newPrice) {
+  function updateChart(newPrice){
     const time = new Date().toLocaleTimeString();
     priceData.push(newPrice);
     labels.push(time);
-    if (priceData.length > 10) { priceData.shift(); labels.shift(); }
+    if(priceData.length>10){ priceData.shift(); labels.shift(); }
     chart.update();
-    const points = labels.map((t,i)=>({ time:t, price:priceData[i] }));
-    graphRef.get().then(snap => {
-      let lastReset = snap.val()?.lastReset || Date.now();
+    graphRef.get().then(snap=>{
+      const lastReset = snap.val()?.lastReset || Date.now();
+      const points = labels.map((t,i)=>({ time:t, price:priceData[i] }));
       graphRef.set({ points, lastReset });
     });
   }
 
+  // Reset graph every 20 minutes
   setInterval(()=>{
-    priceData.length=0; labels.length=0; chart.update();
-    graphRef.get().then(()=>graphRef.set({ points:[], lastReset:Date.now() }));
+    graphRef.get().then(()=>{ 
+      graphRef.set({ points:[], lastReset:Date.now() }); 
+      priceData.length=0; labels.length=0; chart.update();
+    });
   }, 20*60*1000);
 
+  // Real-time price
   db.ref('price').on('value', snap=>{
     price = snap.val() || 100;
     updateUI();
     updateChart(price);
   });
 
+  // Transaction history
   db.ref('history').on('child_added', snap=>{
     const li=document.createElement("li"); li.textContent=snap.val();
     historyEl.prepend(li);
@@ -209,6 +201,7 @@ window.onload = function() {
 
   db.ref('price').transaction(cp=>cp??100);
 
+  // Price auto change
   setInterval(()=>{
     db.ref('price').transaction(cp=>{
       if(cp===null) return 100;
@@ -218,14 +211,16 @@ window.onload = function() {
     });
   },3000);
 
+  // Change nickname
   document.getElementById("changeNickname").addEventListener("click", ()=>{
-    let newNick=prompt("Enter your new nickname")?.trim(); if(!newNick) return;
+    const newNick = prompt("Enter your new nickname")?.trim(); if(!newNick) return;
     nickname=newNick; localStorage.setItem("scaplyNickname", nickname); updateNicknameDisplay();
     alert(`Nickname changed to ${nickname}`);
   });
 
-  function updateUI() { cashEl.textContent="$"+cash.toLocaleString(); sharesEl.textContent=shares; priceEl.textContent="$"+price.toFixed(2); }
+  function updateUI(){ cashEl.textContent="$"+cash.toLocaleString(); sharesEl.textContent=shares; priceEl.textContent="$"+price.toFixed(2); }
 
+  // Buy/Sell
   window.buy=function(){
     const amount=parseInt(document.getElementById("amount").value); if(!amount||amount<=0) return;
     const cost=amount*price; if(cost>cash){alert("Not enough cash!"); return;}
@@ -235,7 +230,6 @@ window.onload = function() {
     db.ref('price').transaction(cp=>Math.max(1, cp+Math.log10(amount+1)));
     updateUI();
   }
-
   window.sell=function(){
     const amount=parseInt(document.getElementById("amount").value); if(!amount||amount<=0) return;
     if(amount>shares){alert("Not enough shares!"); return;}

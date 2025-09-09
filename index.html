@@ -101,20 +101,17 @@ window.onload = function() {
     nicknameEl.textContent = "Nickname: " + nickname;
   }
 
-  // Prompt for nickname if not set
   if (!nickname) {
     nickname = prompt("Enter your nickname") || "Player";
     localStorage.setItem("scaplyNickname", nickname);
   }
   updateNicknameDisplay();
 
-  // Generate unique user ID if not exist
   if (!userId) {
     userId = db.ref('users').push().key;
     localStorage.setItem("scaplyUserId", userId);
   }
 
-  // Load user data
   db.ref('users/' + userId).get().then(snapshot => {
     if (snapshot.exists()) {
       const data = snapshot.val();
@@ -145,11 +142,11 @@ window.onload = function() {
     },
     options: {
       scales: {
-        x: { ticks: { color:'#fff' } },
-        y: { ticks: { color:'#fff' } }
+        x: { ticks: { color:'#fff' }, grid: { color: '#222' } },
+        y: { ticks: { color:'#fff' }, grid: { color: '#222' } }
       },
       plugins: {
-        legend: { labels: { color:'#fff' } }
+        legend: { display: false } // remove blue square
       }
     }
   });
@@ -157,21 +154,23 @@ window.onload = function() {
   function updateChart(newPrice) {
     priceData.push(newPrice);
     labels.push(new Date().toLocaleTimeString());
-    if (priceData.length > 20) {
-      priceData.shift();
-      labels.shift();
-    }
+    if (priceData.length > 20) { priceData.shift(); labels.shift(); }
     chart.update();
   }
 
-  // Listen to shared price
+  // Reset only the graph every 20 minutes
+  setInterval(() => {
+    priceData.length = 0;
+    labels.length = 0;
+    chart.update();
+  }, 20 * 60 * 1000);
+
   db.ref('price').on('value', snapshot => {
     price = snapshot.val() || 100;
     updateUI();
     updateChart(price);
   });
 
-  // Listen to shared history
   db.ref('history').on('child_added', snapshot => {
     const item = snapshot.val();
     const li = document.createElement("li");
@@ -180,24 +179,21 @@ window.onload = function() {
     while (historyEl.children.length > 20) historyEl.removeChild(historyEl.lastChild);
   });
 
-  // Initialize price safely
   db.ref('price').transaction(currentPrice => {
     if (currentPrice === null) return 100;
     return currentPrice;
   });
 
-  // Smooth random price changes every 3s
   setInterval(() => {
     db.ref('price').transaction(currentPrice => {
       if (currentPrice === null) return 100;
-      let change = (Math.random() - 0.5) * 2; // ±$1
+      let change = (Math.random() - 0.5) * 2;
       let newPrice = Math.max(1, currentPrice + change);
       db.ref('history').push(`Price changed to $${newPrice.toFixed(2)}`);
       return newPrice;
     });
   }, 3000);
 
-  // Change nickname button
   document.getElementById("changeNickname").addEventListener("click", () => {
     let newNickname = prompt("Enter your new nickname")?.trim();
     if (!newNickname) return;
@@ -222,10 +218,7 @@ window.onload = function() {
     shares += amount;
     db.ref('users/' + userId).set({ cash, shares });
     db.ref('history').push(`${nickname} bought ${amount} shares at $${price.toFixed(2)}`);
-    db.ref('price').transaction(currentPrice => {
-      let impact = Math.log10(amount + 1);
-      return Math.max(1, currentPrice + impact);
-    });
+    db.ref('price').transaction(currentPrice => Math.max(1, currentPrice + Math.log10(amount + 1)));
     updateUI();
   }
 
@@ -233,15 +226,11 @@ window.onload = function() {
     const amount = parseInt(document.getElementById("amount").value);
     if (!amount || amount <= 0) return;
     if (amount > shares) { alert("Not enough shares!"); return; }
-    const revenue = amount * price;
-    cash += revenue;
+    cash += amount * price;
     shares -= amount;
     db.ref('users/' + userId).set({ cash, shares });
     db.ref('history').push(`${nickname} sold ${amount} shares at $${price.toFixed(2)}`);
-    db.ref('price').transaction(currentPrice => {
-      let impact = Math.log10(amount + 1);
-      return Math.max(1, currentPrice - impact);
-    });
+    db.ref('price').transaction(currentPrice => Math.max(1, currentPrice - Math.log10(amount + 1)));
     updateUI();
   }
 }

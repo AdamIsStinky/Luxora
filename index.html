@@ -18,6 +18,7 @@
   button { padding:10px 15px; border:none; border-radius:6px; font-weight:bold; cursor:pointer; }
   .buy { background:#0f0; color:#000; }
   .sell { background:#f00; color:#fff; }
+  #changeNickname { background:#00f; color:#fff; margin-bottom:10px; }
   .history { background:#111; padding:15px; border-radius:8px; max-height:300px; overflow-y:auto; }
   .history h3 { margin-top:0; }
   .history ul { list-style:none; padding:0; margin:0; }
@@ -51,8 +52,9 @@ const db = firebase.database();
     <div class="stat"><h2 id="cash">$100,000</h2><p>Cash</p></div>
     <div class="stat"><h2 id="shares">0</h2><p>Shares Owned</p></div>
     <div class="stat"><h2 id="price">$100</h2><p>Scaply Price</p></div>
-    <div class="stat"><h2 id="totalValue">$100,000</h2><p>Total Value</p></div>
   </div>
+
+  <button id="changeNickname">Change Nickname</button>
 
   <div class="controls">
     <input type="number" id="amount" placeholder="Enter shares..." min="1">
@@ -78,7 +80,6 @@ window.onload = function() {
   const cashEl = document.getElementById("cash");
   const sharesEl = document.getElementById("shares");
   const priceEl = document.getElementById("price");
-  const totalEl = document.getElementById("totalValue");
   const historyEl = document.getElementById("history");
 
   // Prompt for nickname if not set
@@ -124,23 +125,30 @@ window.onload = function() {
     if (!snapshot.exists()) db.ref('price').set(100);
   });
 
-  // Price simulation with transaction() to prevent conflicts
+  // Price simulation with transaction()
   setInterval(() => {
     db.ref('price').transaction(currentPrice => {
       if (currentPrice === null) return 100;
       let change = (Math.random() - 0.5) * 10;
       let newPrice = Math.max(1, currentPrice + change);
-      // push transaction history
       db.ref('history').push(`Price changed to $${newPrice.toFixed(2)}`);
       return newPrice;
     });
   }, 5000);
 
+  // Change nickname button
+  document.getElementById("changeNickname").addEventListener("click", () => {
+    let newNickname = prompt("Enter your new nickname")?.trim();
+    if (!newNickname) return;
+    nickname = newNickname;
+    localStorage.setItem("scaplyNickname", nickname);
+    alert(`Nickname changed to ${nickname}`);
+  });
+
   function updateUI() {
     cashEl.textContent = "$" + cash.toLocaleString();
     sharesEl.textContent = shares;
     priceEl.textContent = "$" + price.toFixed(2);
-    totalEl.textContent = "$" + (cash + shares * price).toLocaleString();
   }
 
   window.buy = function() {

@@ -146,7 +146,16 @@ window.onload = function() {
         y: { ticks: { color:'#fff' }, grid: { color: '#222' } }
       },
       plugins: {
-        legend: { display: false } // remove blue square
+        legend: { display: false },
+        beforeDraw: chart => {
+          const ctx = chart.ctx;
+          ctx.save();
+          ctx.fillStyle = 'rgba(200,200,200,0.6)';
+          ctx.font = '12px Arial';
+          ctx.textAlign = 'right';
+          ctx.fillText('Graph resets every 20 minutes', chart.width - 10, chart.height - 10);
+          ctx.restore();
+        }
       }
     }
   });
@@ -154,7 +163,13 @@ window.onload = function() {
   function updateChart(newPrice) {
     priceData.push(newPrice);
     labels.push(new Date().toLocaleTimeString());
-    if (priceData.length > 20) { priceData.shift(); labels.shift(); }
+
+    // Keep only the last 10 points
+    if (priceData.length > 10) {
+      priceData.shift();
+      labels.shift();
+    }
+
     chart.update();
   }
 

@@ -140,7 +140,7 @@ window.onload = function() {
       }] 
     },
     options: {
-      animation:{ duration:1000, easing:'easeOutQuart' }, // laggy smooth effect
+      animation:{ duration:1000, easing:'easeOutQuart' },
       scales: { x:{ ticks:{color:'#fff'}, grid:{color:'#222'} }, y:{ ticks:{color:'#fff'}, grid:{color:'#222'} } },
       plugins: {
         legend: { display: false },
@@ -159,6 +159,7 @@ window.onload = function() {
 
   const graphRef = db.ref('graph');
 
+  // Load initial graph
   graphRef.get().then(snapshot=>{
     const data = snapshot.val();
     const now = Date.now();
@@ -187,11 +188,24 @@ window.onload = function() {
     chart.data.labels = [...labels];
     chart.data.datasets[0].data = [...priceData];
     chart.data.datasets[0].tension = 0.3;
-    chart.data.datasets[0].pointRadius = Array(priceData.length-1).fill(3).concat([6]);
-    chart.data.datasets[0].pointBackgroundColor = Array(priceData.length-1).fill('#0ff').concat(['rgba(0,0,255,0)']);
-    chart.data.datasets[0].pointBorderColor = Array(priceData.length-1).fill('#0ff').concat(['#00f']);
-    chart.data.datasets[0].pointBorderWidth = Array(priceData.length-1).fill(1).concat([2]);
-    chart.update({duration:1000, easing:'easeOutQuart'});
+
+    // All points cyan, same radius
+    chart.data.datasets[0].pointRadius = Array(priceData.length).fill(3);
+    chart.data.datasets[0].pointBackgroundColor = Array(priceData.length).fill('#0ff');
+    chart.data.datasets[0].pointBorderColor = Array(priceData.length).fill('#0ff');
+    chart.data.datasets[0].pointBorderWidth = Array(priceData.length).fill(1);
+
+    // Animate left points fast
+    chart.update({duration:300, easing:'linear'});
+
+    // Animate last point laggy
+    if(priceData.length>0){
+      const lastIndex = priceData.length-1;
+      const tempData = [...priceData];
+      tempData[lastIndex] -= 0.0001; // tiny trick to trigger animation
+      chart.data.datasets[0].data = tempData;
+      chart.update({duration:1000, easing:'easeOutQuart'});
+    }
   }
 
   function updateChart(newPrice){

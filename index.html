@@ -159,7 +159,6 @@ window.onload = function() {
 
   const graphRef = db.ref('graph');
 
-  // Load initial graph
   graphRef.get().then(snapshot=>{
     const data = snapshot.val();
     const now = Date.now();
@@ -189,20 +188,19 @@ window.onload = function() {
     chart.data.datasets[0].data = [...priceData];
     chart.data.datasets[0].tension = 0.3;
 
-    // All points cyan, same radius
     chart.data.datasets[0].pointRadius = Array(priceData.length).fill(3);
     chart.data.datasets[0].pointBackgroundColor = Array(priceData.length).fill('#0ff');
     chart.data.datasets[0].pointBorderColor = Array(priceData.length).fill('#0ff');
     chart.data.datasets[0].pointBorderWidth = Array(priceData.length).fill(1);
 
-    // Animate left points fast
-    chart.update({duration:300, easing:'linear'});
+    // older points slide left like original
+    chart.update({duration:500, easing:'linear'});
 
-    // Animate last point laggy
+    // last point laggy
     if(priceData.length>0){
       const lastIndex = priceData.length-1;
       const tempData = [...priceData];
-      tempData[lastIndex] -= 0.0001; // tiny trick to trigger animation
+      tempData[lastIndex] -= 0.0001;
       chart.data.datasets[0].data = tempData;
       chart.update({duration:1000, easing:'easeOutQuart'});
     }
@@ -212,11 +210,8 @@ window.onload = function() {
     const time = new Date().toLocaleTimeString();
     priceData.push(newPrice);
     labels.push(time);
-
     while(priceData.length>8){ priceData.shift(); labels.shift(); }
-
     updateChartUI();
-
     graphRef.set({ points: labels.map((t,i)=>({time:t,price:priceData[i]})), lastReset: Date.now() });
   }
 

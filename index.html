@@ -140,7 +140,7 @@ window.onload = function() {
       }] 
     },
     options: {
-      animation:{ duration:500, easing:'linear' }, // smooth animation
+      animation:{ duration:1000, easing:'easeOutQuart' }, // laggy smooth effect
       scales: { x:{ ticks:{color:'#fff'}, grid:{color:'#222'} }, y:{ ticks:{color:'#fff'}, grid:{color:'#222'} } },
       plugins: {
         legend: { display: false },
@@ -159,7 +159,6 @@ window.onload = function() {
 
   const graphRef = db.ref('graph');
 
-  // Load initial graph
   graphRef.get().then(snapshot=>{
     const data = snapshot.val();
     const now = Date.now();
@@ -192,7 +191,7 @@ window.onload = function() {
     chart.data.datasets[0].pointBackgroundColor = Array(priceData.length-1).fill('#0ff').concat(['rgba(0,0,255,0)']);
     chart.data.datasets[0].pointBorderColor = Array(priceData.length-1).fill('#0ff').concat(['#00f']);
     chart.data.datasets[0].pointBorderWidth = Array(priceData.length-1).fill(1).concat([2]);
-    chart.update();
+    chart.update({duration:1000, easing:'easeOutQuart'});
   }
 
   function updateChart(newPrice){

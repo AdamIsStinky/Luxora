@@ -145,52 +145,39 @@ window.onload = function() {
 
   const graphRef = db.ref('graph');
   let firstPriceLoaded = false;
-  let lastChartPrice = null;
+
+  // Load initial graph
+  graphRef.get().then(snapshot=>{
+    const data = snapshot.val();
+    const now = Date.now();
+    if(data && data.points && data.lastReset && (now - data.lastReset < 20*60*1000)){
+      const recentPoints = data.points.slice(-10);
+      recentPoints.forEach(p => { priceData.push(p.price); labels.push(p.time); });
+    }
+    if(priceData.length === 0){
+      priceData.push(price);
+      labels.push(new Date().toLocaleTimeString());
+    }
+    chart.update();
+  });
 
   // Listen to price changes
   db.ref('price').on('value', snap=>{
     price = snap.val() || 100;
     updateUI();
-
-    if(!firstPriceLoaded){
-      graphRef.get().then(snapshot=>{
-        const data = snapshot.val();
-        const now = Date.now();
-        priceData.length = 0;
-        labels.length = 0;
-
-        if(data && data.points && data.lastReset && (now - data.lastReset < 20*60*1000)){
-          const recentPoints = data.points.slice(-10);
-          recentPoints.forEach(p => { priceData.push(p.price); labels.push(p.time); });
-        }
-
-        if(priceData.length === 0){
-          priceData.push(price);
-          labels.push(new Date().toLocaleTimeString());
-        }
-
-        chart.update();
-      });
-      firstPriceLoaded = true;
-      return;
-    }
-
     updateChart(price);
   });
 
   function updateChart(newPrice){
-    if(newPrice === lastChartPrice) return;
-    lastChartPrice = newPrice;
-
     const time = new Date().toLocaleTimeString();
-    priceData.push(newPrice);
-    labels.push(time);
-
+    // Only add if different from last
+    if(priceData.length===0 || newPrice !== priceData[priceData.length-1]){
+      priceData.push(newPrice);
+      labels.push(time);
+    }
     while(priceData.length > 10){ priceData.shift(); labels.shift(); }
-
-    // Force redraw immediately
-    setTimeout(()=>chart.update(), 0);
-
+    chart.update(); // Immediate redraw
+    // Save to Firebase asynchronously
     graphRef.set({ points: labels.map((t,i)=>({time:t,price:priceData[i]})), lastReset:Date.now() });
   }
 

@@ -125,7 +125,18 @@ window.onload = function() {
   const labels = [];
   const chart = new Chart(ctx, {
     type: 'line',
-    data: { labels: labels, datasets: [{ label:'Scaply Price', data:priceData, borderColor:'#0ff', backgroundColor:'rgba(0,255,255,0.2)', tension:0.3, fill:true }] },
+    data: { 
+      labels: labels, 
+      datasets: [{
+        label:'Scaply Price', 
+        data:priceData, 
+        borderColor:'#0ff', 
+        backgroundColor:'rgba(0,255,255,0.2)', 
+        tension:0.3, 
+        fill:true,
+        pointRadius:0 // <--- prevent delay
+      }] 
+    },
     options: {
       scales: { x:{ ticks:{color:'#fff'}, grid:{color:'#222'} }, y:{ ticks:{color:'#fff'}, grid:{color:'#222'} } },
       plugins: {
@@ -144,7 +155,6 @@ window.onload = function() {
   });
 
   const graphRef = db.ref('graph');
-  let firstPriceLoaded = false;
 
   // Load initial graph
   graphRef.get().then(snapshot=>{
@@ -170,14 +180,17 @@ window.onload = function() {
 
   function updateChart(newPrice){
     const time = new Date().toLocaleTimeString();
-    // Only add if different from last
     if(priceData.length===0 || newPrice !== priceData[priceData.length-1]){
       priceData.push(newPrice);
       labels.push(time);
     }
     while(priceData.length > 10){ priceData.shift(); labels.shift(); }
-    chart.update(); // Immediate redraw
-    // Save to Firebase asynchronously
+    chart.update();
+
+    // Highlight last point
+    chart.data.datasets[0].pointRadius = Array(chart.data.labels.length-1).fill(0).concat([3]);
+    chart.update();
+
     graphRef.set({ points: labels.map((t,i)=>({time:t,price:priceData[i]})), lastReset:Date.now() });
   }
 
@@ -187,7 +200,7 @@ window.onload = function() {
     priceData.length=0; labels.length=0; chart.update();
   }, 20*60*1000);
 
-  // Transaction history with colors
+  // Transaction history
   db.ref('history').on('child_added', snap=>{
     const text = snap.val();
     const li = document.createElement("li");

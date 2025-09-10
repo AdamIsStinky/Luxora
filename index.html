@@ -160,13 +160,17 @@ window.onload = function() {
     const data = snapshot.val();
     const now = Date.now();
     if(data && data.points && data.lastReset && (now - data.lastReset < 20*60*1000)){
-      const recentPoints = data.points.slice(-8);
+      const recentPoints = data.points.slice(-8); // keep last 8 points
       recentPoints.forEach(p => { priceData.push(p.price); labels.push(p.time); });
     }
     if(priceData.length === 0){
       priceData.push(price);
       labels.push(new Date().toLocaleTimeString());
     }
+
+    // Ensure max 8 points after loading
+    while(priceData.length > 8) { priceData.shift(); labels.shift(); }
+
     chart.update();
   });
 

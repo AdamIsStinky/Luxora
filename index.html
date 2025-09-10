@@ -163,7 +163,6 @@ window.onload = function() {
           recentPoints.forEach(p => { priceData.push(p.price); labels.push(p.time); });
         }
 
-        // First point is current price
         if(priceData.length === 0){
           priceData.push(price);
           labels.push(new Date().toLocaleTimeString());
@@ -183,10 +182,10 @@ window.onload = function() {
     priceData.push(newPrice);
     labels.push(time);
 
-    // Keep max 10 points
     while(priceData.length > 10){ priceData.shift(); labels.shift(); }
 
-    chart.update();
+    // Force chart redraw immediately
+    requestAnimationFrame(()=>{ chart.update(); });
 
     graphRef.get().then(snap=>{
       const lastReset = snap.val()?.lastReset || Date.now();
@@ -201,9 +200,14 @@ window.onload = function() {
     priceData.length=0; labels.length=0; chart.update();
   }, 20*60*1000);
 
-  // Transaction history
+  // Transaction history with colors
   db.ref('history').on('child_added', snap=>{
-    const li=document.createElement("li"); li.textContent=snap.val();
+    const text = snap.val();
+    const li = document.createElement("li");
+    li.textContent = text;
+    if(text.includes("bought")) li.style.color = "#0f0";
+    else if(text.includes("sold")) li.style.color = "#f00";
+    else li.style.color = "#fff";
     historyEl.prepend(li);
     while(historyEl.children.length>20) historyEl.removeChild(historyEl.lastChild);
   });

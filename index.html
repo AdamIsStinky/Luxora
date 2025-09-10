@@ -131,14 +131,16 @@ window.onload = function() {
         data:priceData, 
         borderColor:'#0ff', 
         backgroundColor:'rgba(0,255,255,0.2)', 
-        tension:0, 
+        tension:0.3, 
         fill:true,
-        pointRadius: 2,
-        pointBackgroundColor: '#0ff'
+        pointRadius: 3,
+        pointBackgroundColor: '#0ff',
+        pointBorderColor: '#0ff',
+        pointBorderWidth: 1
       }] 
     },
     options: {
-      animation:false,
+      animation:{ duration:500, easing:'linear' }, // smooth animation
       scales: { x:{ ticks:{color:'#fff'}, grid:{color:'#222'} }, y:{ ticks:{color:'#fff'}, grid:{color:'#222'} } },
       plugins: {
         legend: { display: false },
@@ -170,9 +172,7 @@ window.onload = function() {
       labels.push(new Date().toLocaleTimeString());
     }
     while(priceData.length > 8){ priceData.shift(); labels.shift(); }
-    chart.data.datasets[0].pointRadius = Array(priceData.length-1).fill(2).concat([5]);
-    chart.data.datasets[0].pointBackgroundColor = Array(priceData.length-1).fill('#0ff').concat(['#00f']);
-    chart.update();
+    updateChartUI();
   });
 
   db.ref('price').on('value', snap=>{
@@ -184,6 +184,16 @@ window.onload = function() {
     }
   });
 
+  function updateChartUI(){
+    chart.data.labels = [...labels];
+    chart.data.datasets[0].data = [...priceData];
+    chart.data.datasets[0].pointRadius = Array(priceData.length-1).fill(3).concat([5]);
+    chart.data.datasets[0].pointBackgroundColor = Array(priceData.length-1).fill('#0ff').concat(['rgba(0,0,255,0)']);
+    chart.data.datasets[0].pointBorderColor = Array(priceData.length-1).fill('#0ff').concat(['#00f']);
+    chart.data.datasets[0].pointBorderWidth = Array(priceData.length-1).fill(1).concat([2]);
+    chart.update();
+  }
+
   function updateChart(newPrice){
     const time = new Date().toLocaleTimeString();
     priceData.push(newPrice);
@@ -191,18 +201,15 @@ window.onload = function() {
 
     while(priceData.length>8){ priceData.shift(); labels.shift(); }
 
-    chart.data.labels = [...labels];
-    chart.data.datasets[0].data = [...priceData];
-    chart.data.datasets[0].pointRadius = Array(priceData.length-1).fill(2).concat([5]);
-    chart.data.datasets[0].pointBackgroundColor = Array(priceData.length-1).fill('#0ff').concat(['#00f']);
-    chart.update('none'); // instant redraw
+    updateChartUI();
 
+    // Save to Firebase
     graphRef.set({ points: labels.map((t,i)=>({time:t,price:priceData[i]})), lastReset: Date.now() });
   }
 
   setInterval(()=>{
     graphRef.set({ points:[], lastReset:Date.now() });
-    priceData.length=0; labels.length=0; chart.data.datasets[0].data=[]; chart.data.labels=[]; chart.update('none');
+    priceData.length=0; labels.length=0; updateChartUI();
   }, 20*60*1000);
 
   db.ref('history').on('child_added', snap=>{

@@ -131,12 +131,13 @@ window.onload = function() {
         data:priceData, 
         borderColor:'#0ff', 
         backgroundColor:'rgba(0,255,255,0.2)', 
-        tension:0.3, 
+        tension:0, 
         fill:true,
         pointRadius:0
       }] 
     },
     options: {
+      animation:false, // disable smooth animation
       scales: { x:{ ticks:{color:'#fff'}, grid:{color:'#222'} }, y:{ ticks:{color:'#fff'}, grid:{color:'#222'} } },
       plugins: {
         legend: { display: false },
@@ -160,51 +161,45 @@ window.onload = function() {
     const data = snapshot.val();
     const now = Date.now();
     if(data && data.points && data.lastReset && (now - data.lastReset < 20*60*1000)){
-      const recentPoints = data.points.slice(-8); // keep last 8 points
+      const recentPoints = data.points.slice(-8);
       recentPoints.forEach(p => { priceData.push(p.price); labels.push(p.time); });
     }
     if(priceData.length === 0){
       priceData.push(price);
       labels.push(new Date().toLocaleTimeString());
     }
-
-    // Ensure max 8 points after loading
-    while(priceData.length > 8) { priceData.shift(); labels.shift(); }
-
+    // Trim if somehow >8
+    while(priceData.length > 8){ priceData.shift(); labels.shift(); }
+    chart.data.datasets[0].pointRadius = Array(chart.data.labels.length-1).fill(0).concat([3]);
     chart.update();
   });
 
   db.ref('price').on('value', snap=>{
-    price = snap.val() || 100;
-    updateUI();
-    updateChart(price);
+    const newPrice = snap.val() || 100;
+    if(newPrice !== price){
+      price = newPrice;
+      updateUI();
+      updateChart(price);
+    }
   });
 
   function updateChart(newPrice){
     const time = new Date().toLocaleTimeString();
-    if(priceData.length===0 || newPrice !== priceData[priceData.length-1]){
-      priceData.push(newPrice);
-      labels.push(time);
-    }
+    priceData.push(newPrice);
+    labels.push(time);
 
-    // Limit graph to 8 points
-    while(priceData.length > 8){
-      priceData.shift();
-      labels.shift();
-    }
+    while(priceData.length>8){ priceData.shift(); labels.shift(); }
 
+    chart.data.labels = [...labels];
+    chart.data.datasets[0].data = [...priceData];
     chart.data.datasets[0].pointRadius = Array(chart.data.labels.length-1).fill(0).concat([3]);
-    chart.update();
-
-    graphRef.set({
-      points: labels.map((t,i)=>({time:t,price:priceData[i]})),
-      lastReset: Date.now()
-    });
+    chart.update('none'); // no animation
+    graphRef.set({ points: labels.map((t,i)=>({time:t,price:priceData[i]})), lastReset: Date.now() });
   }
 
   setInterval(()=>{
     graphRef.set({ points:[], lastReset:Date.now() });
-    priceData.length=0; labels.length=0; chart.update();
+    priceData.length=0; labels.length=0; chart.data.datasets[0].data=[]; chart.data.labels=[]; chart.update('none');
   }, 20*60*1000);
 
   db.ref('history').on('child_added', snap=>{

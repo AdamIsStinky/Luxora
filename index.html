@@ -145,6 +145,7 @@ window.onload = function() {
 
   const graphRef = db.ref('graph');
   let firstPriceLoaded = false;
+  let lastChartPrice = null;
 
   // Listen to price changes
   db.ref('price').on('value', snap=>{
@@ -178,20 +179,19 @@ window.onload = function() {
   });
 
   function updateChart(newPrice){
+    if(newPrice === lastChartPrice) return;
+    lastChartPrice = newPrice;
+
     const time = new Date().toLocaleTimeString();
     priceData.push(newPrice);
     labels.push(time);
 
     while(priceData.length > 10){ priceData.shift(); labels.shift(); }
 
-    // Force chart redraw immediately
-    requestAnimationFrame(()=>{ chart.update(); });
+    // Force redraw immediately
+    setTimeout(()=>chart.update(), 0);
 
-    graphRef.get().then(snap=>{
-      const lastReset = snap.val()?.lastReset || Date.now();
-      const points = labels.map((t,i)=>({ time:t, price:priceData[i] }));
-      graphRef.set({ points, lastReset });
-    });
+    graphRef.set({ points: labels.map((t,i)=>({time:t,price:priceData[i]})), lastReset:Date.now() });
   }
 
   // Reset graph every 20 minutes

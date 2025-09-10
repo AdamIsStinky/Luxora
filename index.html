@@ -21,7 +21,7 @@
   .sell { background:#f00; color:#fff; }
   #changeNickname { background:#00f; color:#fff; margin-bottom:10px; }
   .chart-container { background:#111; padding:15px; border-radius:8px; margin-bottom:20px; position:relative; }
-  .history { background:#111; padding:15px; border-radius:8px; max-height:300px; overflow-y:auto; }
+  .history { background:#111; padding:15px; border-radius:8px; max-height:300px; overflow-y:auto; margin-bottom:20px; }
   .history h3 { margin-top:0; }
   .history ul { list-style:none; padding:0; margin:0; }
   .history li { padding:8px 0; border-bottom:1px solid #222; }
@@ -77,6 +77,11 @@ const db = firebase.database();
     <ul id="history"></ul>
   </div>
 
+  <div class="history">
+    <h3>Players Online</h3>
+    <ul id="onlinePlayers"></ul>
+  </div>
+
 </div>
 
 <script>
@@ -92,6 +97,7 @@ window.onload = function() {
   const priceEl = document.getElementById("price");
   const historyEl = document.getElementById("history");
   const nicknameEl = document.getElementById("nicknameDisplay");
+  const onlineEl = document.getElementById("onlinePlayers");
 
   function updateNicknameDisplay() { nicknameEl.textContent = "Nickname: " + nickname; }
 
@@ -106,6 +112,29 @@ window.onload = function() {
     localStorage.setItem("scaplyUserId", userId);
   }
 
+  // === Track presence ===
+  const userStatusRef = db.ref("onlinePlayers/" + userId);
+  userStatusRef.set({ nickname: nickname, lastActive: Date.now() });
+  userStatusRef.onDisconnect().remove();
+
+  // === Show online players ===
+  db.ref("onlinePlayers").on("value", (snapshot) => {
+    const players = snapshot.val() || {};
+    onlineEl.innerHTML = "";
+    const count = Object.keys(players).length;
+    const header = document.createElement("li");
+    header.style.color = "#0ff";
+    header.textContent = `Online Players: ${count}`;
+    onlineEl.appendChild(header);
+
+    Object.values(players).forEach(player => {
+      const li = document.createElement("li");
+      li.textContent = player.nickname;
+      onlineEl.appendChild(li);
+    });
+  });
+
+  // === Load user cash/shares ===
   db.ref('users/' + userId).get().then(snapshot => {
     if (snapshot.exists()) {
       const data = snapshot.val();
@@ -117,6 +146,7 @@ window.onload = function() {
     updateUI();
   });
 
+  // === Chart setup ===
   const ctx = document.getElementById('priceChart').getContext('2d');
   const priceData = [];
   const labels = [];
@@ -182,9 +212,7 @@ window.onload = function() {
   });
 
   function updateChartUI(){
-    // Keep max 8 points
     while(priceData.length>8){ priceData.shift(); labels.shift(); }
-
     const length = priceData.length;
 
     chart.data.datasets[0].pointRadius = Array(length).fill(3);
@@ -195,11 +223,9 @@ window.onload = function() {
     chart.data.labels = [...labels];
     chart.data.datasets[0].data = [...priceData];
 
-    // Animate older points sliding left
     chart.options.animation = { duration:500, easing:'linear' };
     chart.update();
 
-    // Laggy last point
     if(length>0){
       const lastIndex = length-1;
       const tempData = [...priceData];
@@ -213,11 +239,8 @@ window.onload = function() {
     const time = new Date().toLocaleTimeString();
     priceData.push(newPrice);
     labels.push(time);
-
     while(priceData.length>8){ priceData.shift(); labels.shift(); }
-
     updateChartUI();
-
     graphRef.set({ points: labels.map((t,i)=>({time:t,price:priceData[i]})), lastReset: Date.now() });
   }
 
@@ -251,6 +274,7 @@ window.onload = function() {
   document.getElementById("changeNickname").addEventListener("click", ()=>{
     const newNick = prompt("Enter your new nickname")?.trim(); if(!newNick) return;
     nickname=newNick; localStorage.setItem("scaplyNickname", nickname); updateNicknameDisplay();
+    userStatusRef.set({ nickname: nickname, lastActive: Date.now() }); // update in online list
     alert(`Nickname changed to ${nickname}`);
   });
 

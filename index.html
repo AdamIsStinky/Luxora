@@ -27,10 +27,8 @@
   .history li { padding:8px 0; border-bottom:1px solid #222; }
 </style>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
@@ -140,7 +138,7 @@ window.onload = function() {
       }] 
     },
     options: {
-      animation:{ duration:1000, easing:'easeOutQuart' },
+      animation:{ duration:500, easing:'linear' },
       scales: { x:{ ticks:{color:'#fff'}, grid:{color:'#222'} }, y:{ ticks:{color:'#fff'}, grid:{color:'#222'} } },
       plugins: {
         legend: { display: false },
@@ -184,25 +182,30 @@ window.onload = function() {
   });
 
   function updateChartUI(){
+    // Keep max 8 points
+    while(priceData.length>8){ priceData.shift(); labels.shift(); }
+
+    const length = priceData.length;
+
+    chart.data.datasets[0].pointRadius = Array(length).fill(3);
+    chart.data.datasets[0].pointBackgroundColor = Array(length).fill('#0ff');
+    chart.data.datasets[0].pointBorderColor = Array(length).fill('#0ff');
+    chart.data.datasets[0].pointBorderWidth = Array(length).fill(1);
+
     chart.data.labels = [...labels];
     chart.data.datasets[0].data = [...priceData];
-    chart.data.datasets[0].tension = 0.3;
 
-    chart.data.datasets[0].pointRadius = Array(priceData.length).fill(3);
-    chart.data.datasets[0].pointBackgroundColor = Array(priceData.length).fill('#0ff');
-    chart.data.datasets[0].pointBorderColor = Array(priceData.length).fill('#0ff');
-    chart.data.datasets[0].pointBorderWidth = Array(priceData.length).fill(1);
+    // Animate older points sliding left
+    chart.options.animation = { duration:500, easing:'linear' };
+    chart.update();
 
-    // older points slide left like original
-    chart.update({duration:500, easing:'linear'});
-
-    // last point laggy
-    if(priceData.length>0){
-      const lastIndex = priceData.length-1;
+    // Laggy last point
+    if(length>0){
+      const lastIndex = length-1;
       const tempData = [...priceData];
       tempData[lastIndex] -= 0.0001;
       chart.data.datasets[0].data = tempData;
-      chart.update({duration:1000, easing:'easeOutQuart'});
+      chart.update({ duration:1000, easing:'easeOutQuart' });
     }
   }
 
@@ -210,8 +213,11 @@ window.onload = function() {
     const time = new Date().toLocaleTimeString();
     priceData.push(newPrice);
     labels.push(time);
+
     while(priceData.length>8){ priceData.shift(); labels.shift(); }
+
     updateChartUI();
+
     graphRef.set({ points: labels.map((t,i)=>({time:t,price:priceData[i]})), lastReset: Date.now() });
   }
 

@@ -133,11 +133,12 @@ window.onload = function() {
         backgroundColor:'rgba(0,255,255,0.2)', 
         tension:0, 
         fill:true,
-        pointRadius:0
+        pointRadius: 2,
+        pointBackgroundColor: '#0ff'
       }] 
     },
     options: {
-      animation:false, // disable smooth animation
+      animation:false,
       scales: { x:{ ticks:{color:'#fff'}, grid:{color:'#222'} }, y:{ ticks:{color:'#fff'}, grid:{color:'#222'} } },
       plugins: {
         legend: { display: false },
@@ -168,9 +169,9 @@ window.onload = function() {
       priceData.push(price);
       labels.push(new Date().toLocaleTimeString());
     }
-    // Trim if somehow >8
     while(priceData.length > 8){ priceData.shift(); labels.shift(); }
-    chart.data.datasets[0].pointRadius = Array(chart.data.labels.length-1).fill(0).concat([3]);
+    chart.data.datasets[0].pointRadius = Array(priceData.length-1).fill(2).concat([5]);
+    chart.data.datasets[0].pointBackgroundColor = Array(priceData.length-1).fill('#0ff').concat(['#00f']);
     chart.update();
   });
 
@@ -192,8 +193,10 @@ window.onload = function() {
 
     chart.data.labels = [...labels];
     chart.data.datasets[0].data = [...priceData];
-    chart.data.datasets[0].pointRadius = Array(chart.data.labels.length-1).fill(0).concat([3]);
-    chart.update('none'); // no animation
+    chart.data.datasets[0].pointRadius = Array(priceData.length-1).fill(2).concat([5]);
+    chart.data.datasets[0].pointBackgroundColor = Array(priceData.length-1).fill('#0ff').concat(['#00f']);
+    chart.update('none'); // instant redraw
+
     graphRef.set({ points: labels.map((t,i)=>({time:t,price:priceData[i]})), lastReset: Date.now() });
   }
 

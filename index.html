@@ -137,7 +137,6 @@ window.onload = function() {
       }] 
     },
     options: {
-      animation: { duration: 500, easing:'easeOutQuart' },
       scales: { x:{ ticks:{color:'#fff'}, grid:{color:'#222'} }, y:{ ticks:{color:'#fff'}, grid:{color:'#222'} } },
       plugins: {
         legend: { display: false },
@@ -185,7 +184,6 @@ window.onload = function() {
     }
     while(priceData.length>10){ priceData.shift(); labels.shift(); }
 
-    // Only last point shows circle
     chart.data.datasets[0].pointRadius = Array(chart.data.labels.length-1).fill(0).concat([3]);
     chart.update();
 

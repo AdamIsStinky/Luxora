@@ -160,7 +160,7 @@ window.onload = function() {
     const data = snapshot.val();
     const now = Date.now();
     if(data && data.points && data.lastReset && (now - data.lastReset < 20*60*1000)){
-      const recentPoints = data.points.slice(-10);
+      const recentPoints = data.points.slice(-8);
       recentPoints.forEach(p => { priceData.push(p.price); labels.push(p.time); });
     }
     if(priceData.length === 0){
@@ -182,12 +182,20 @@ window.onload = function() {
       priceData.push(newPrice);
       labels.push(time);
     }
-    while(priceData.length>10){ priceData.shift(); labels.shift(); }
+
+    // Limit graph to 8 points
+    while(priceData.length > 8){
+      priceData.shift();
+      labels.shift();
+    }
 
     chart.data.datasets[0].pointRadius = Array(chart.data.labels.length-1).fill(0).concat([3]);
     chart.update();
 
-    graphRef.set({ points: labels.map((t,i)=>({time:t,price:priceData[i]})), lastReset:Date.now() });
+    graphRef.set({
+      points: labels.map((t,i)=>({time:t,price:priceData[i]})),
+      lastReset: Date.now()
+    });
   }
 
   setInterval(()=>{
